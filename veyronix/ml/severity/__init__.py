@@ -1,0 +1,1 @@
+"""Incident severity classification."""

@@ -1,0 +1,33 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: radial-gradient(1200px 600px at 80% -10%, #12203f 0%, #0b1020 55%);
+  color: #e6ecf7;
+  font-family: Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  background: linear-gradient(180deg, rgba(30,39,64,0.75), rgba(21,29,51,0.75));
+  border: 1px solid #26324d;
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+}
+.pill { border-radius: 999px; font-weight: 600; font-size: 11px; letter-spacing: .02em; }
+.btn {
+  border-radius: 10px; font-weight: 600; font-size: 13px; padding: 8px 12px;
+  border: 1px solid #2c3a5c; transition: all .15s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { background: #3b82f6; border-color: #3b82f6; color: white; }
+.btn-primary:hover { background: #2f6fe0; }
+.btn-ghost { background: rgba(255,255,255,0.03); color: #cdd7ee; }
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: #26324d; border-radius: 8px; }

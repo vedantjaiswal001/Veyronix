@@ -1,0 +1,114 @@
+# VEYRONIX — Kubernetes manifests (production-oriented path, spec §11/§56).
+# Apply with: kubectl apply -f infrastructure/kubernetes/veyronix.yaml
+# Images are placeholders — build & push api/web images, then set them below.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: veyronix
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: veyronix-secrets
+  namespace: veyronix
+type: Opaque
+stringData:
+  VEYRONIX_DATABASE_URL: postgresql+psycopg://veyronix:veyronix@postgres:5432/veyronix
+  # Set a real key to enable a live LLM; leave empty to use the offline reasoner.
+  VEYRONIX_ANTHROPIC_API_KEY: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: veyronix
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata: { labels: { app: postgres } }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - { name: POSTGRES_USER, value: veyronix }
+            - { name: POSTGRES_PASSWORD, value: veyronix }
+            - { name: POSTGRES_DB, value: veyronix }
+          ports: [{ containerPort: 5432 }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: postgres, namespace: veyronix }
+spec:
+  selector: { app: postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: veyronix
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: api } }
+  template:
+    metadata:
+      labels: { app: api }
+      annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8000", prometheus.io/path: "/metrics" }
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/OWNER/veyronix-api:latest
+          envFrom: [{ secretRef: { name: veyronix-secrets } }]
+          env: [{ name: VEYRONIX_ENVIRONMENT, value: prod }]
+          ports: [{ containerPort: 8000 }]
+          readinessProbe: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 5 }
+          livenessProbe: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 15 }
+          resources:
+            requests: { cpu: "250m", memory: "512Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: api, namespace: veyronix }
+spec:
+  selector: { app: api }
+  ports: [{ port: 8000, targetPort: 8000 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: veyronix
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: web } }
+  template:
+    metadata: { labels: { app: web } }
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/OWNER/veyronix-web:latest
+          ports: [{ containerPort: 80 }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: web, namespace: veyronix }
+spec:
+  type: LoadBalancer
+  selector: { app: web }
+  ports: [{ port: 80, targetPort: 80 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: veyronix
+  namespace: veyronix
+spec:
+  rules:
+    - http:
+        paths:
+          - { path: /api, pathType: Prefix, backend: { service: { name: api, port: { number: 8000 } } } }
+          - { path: /, pathType: Prefix, backend: { service: { name: web, port: { number: 80 } } } }

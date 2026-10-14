@@ -1,0 +1,55 @@
+{
+  "title": "VEYRONIX — Self Observability",
+  "uid": "veyronix-self",
+  "schemaVersion": 39,
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1, "type": "gauge", "title": "Model health",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "min": 0, "max": 1,
+        "thresholds": { "steps": [
+          { "color": "red", "value": 0 },
+          { "color": "yellow", "value": 0.5 },
+          { "color": "green", "value": 1 } ] } } },
+      "targets": [ { "expr": "veyronix_model_health" } ]
+    },
+    {
+      "id": 2, "type": "gauge", "title": "Latest incident probability",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": { "defaults": { "min": 0, "max": 1,
+        "thresholds": { "steps": [
+          { "color": "green", "value": 0 },
+          { "color": "yellow", "value": 0.5 },
+          { "color": "red", "value": 0.8 } ] } } },
+      "targets": [ { "expr": "veyronix_incident_probability" } ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "API request latency (p95)",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 0 },
+      "targets": [ { "expr": "histogram_quantile(0.95, sum(rate(veyronix_api_request_seconds_bucket[5m])) by (le, endpoint))", "legendFormat": "{{endpoint}}" } ]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Agent investigation latency (p95)",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 6 },
+      "targets": [ { "expr": "histogram_quantile(0.95, sum(rate(veyronix_agent_investigation_seconds_bucket[5m])) by (le, provider))", "legendFormat": "{{provider}}" } ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Tool calls / min",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 6 },
+      "targets": [ { "expr": "sum(rate(veyronix_tool_calls_total[5m])) by (tool)", "legendFormat": "{{tool}}" } ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Top feature drift (PSI)",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 12 },
+      "targets": [ { "expr": "topk(5, veyronix_model_feature_drift)", "legendFormat": "{{feature}}" } ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Errors / min",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 12 },
+      "targets": [ { "expr": "sum(rate(veyronix_errors_total[5m])) by (component)", "legendFormat": "{{component}}" } ]
+    }
+  ]
+}

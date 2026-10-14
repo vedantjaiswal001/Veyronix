@@ -1,0 +1,82 @@
+# VEYRONIX local stack. `docker compose up --build` brings up the full system.
+# Local dev without Docker still works (SQLite + `make run`); this stack adds
+# Postgres, Redis, Prometheus and Grafana for a production-shaped environment.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: veyronix
+      POSTGRES_PASSWORD: veyronix
+      POSTGRES_DB: veyronix
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veyronix"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    environment:
+      VEYRONIX_ENVIRONMENT: docker
+      VEYRONIX_DATABASE_URL: postgresql+psycopg://veyronix:veyronix@postgres:5432/veyronix
+      VEYRONIX_REDIS_URL: redis://redis:6379/0
+      VEYRONIX_LLM_PROVIDER: ${VEYRONIX_LLM_PROVIDER:-offline}
+      VEYRONIX_ANTHROPIC_API_KEY: ${VEYRONIX_ANTHROPIC_API_KEY:-}
+      VEYRONIX_OPENAI_API_KEY: ${VEYRONIX_OPENAI_API_KEY:-}
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  web:
+    build:
+      context: ./web
+      dockerfile: ../infrastructure/docker/web.Dockerfile
+    environment:
+      VITE_API_BASE: http://localhost:8000
+    ports: ["3000:80"]
+    depends_on: [api]
+
+  mcp:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    command: ["python", "-m", "veyronix.mcp.server"]
+    environment:
+      VEYRONIX_ENVIRONMENT: docker
+      VEYRONIX_DATABASE_URL: postgresql+psycopg://veyronix:veyronix@postgres:5432/veyronix
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: veyronix
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ./infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports: ["3001:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  pgdata:
