@@ -6,15 +6,18 @@ import pytest
 
 from veyronix.eval.baselines import run_baselines
 from veyronix.eval.unknown_failure import run_unknown_failure
-from veyronix.features.build import DATASET_PATH, build_dataset
+from veyronix.features.build import build_dataset
 
 pytestmark = [pytest.mark.ml, pytest.mark.slow]
 
 
 @pytest.fixture(scope="module", autouse=True)
 def ensure_dataset():
-    if not DATASET_PATH.exists():
-        build_dataset(seeds=[42, 43, 44, 45], minutes=1440, persist=True)
+    build_dataset(
+        seeds=[42, 43, 44, 45, 46, 47, 48, 49],
+        minutes=1440,
+        persist=True,
+    )
 
 
 def test_baselines_ml_beats_static_on_pr_auc():
